@@ -1,0 +1,11 @@
+node_modules/
+dist/
+build/
+__pycache__/
+*.pyc
+.venv/
+.env
+.DS_Store
+data/training/*.json
+data/training/*.csv
+!data/training/.gitkeep

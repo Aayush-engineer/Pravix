@@ -1,0 +1,9 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  lint-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for broken links in docs
+        run: echo "placeholder — real checks added in Phase 1"
