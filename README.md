@@ -2,7 +2,28 @@
 
 **Predict whether an agent-authored pull request will get merged, ghosted, or dragged into a costly review spiral — before a human ever reads the diff.**
 
-> Status: early research phase. Core model not yet validated. See [Roadmap](#roadmap) for current stage.
+![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+![Status](https://img.shields.io/badge/status-Phase%200%20%E2%80%94%20research-orange)
+![Contributions](https://img.shields.io/badge/contributions-not%20yet%20open-lightgrey)
+
+> **Status: early research phase.** The core prediction model has not yet been validated against real data. Nothing here is production-ready. See [Roadmap](#roadmap) for the current stage and what's next.
+
+If the idea sounds useful to you, **star/watch the repo** — Phase 0 findings and the first working CLI will be announced there first.
+
+---
+
+## Contents
+
+- [The problem](#the-problem)
+- [What Pravix does](#what-pravix-does)
+- [Why not just use PR-Agent / CodeRabbit / GitHub's Agentic Workflows?](#why-not-just-use-pr-agent--coderabbit--githubs-agentic-workflows)
+- [Research basis](#research-basis)
+- [Current stage](#current-stage-phase-0--validating-the-model)
+- [Tech stack](#tech-stack)
+- [Roadmap](#roadmap)
+- [Design principles](#design-principles)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
@@ -34,11 +55,11 @@ Pravix instead answers a narrower, provable question — *is this PR statistical
 
 Pravix's model is not designed from scratch — it operationalizes findings from recent empirical studies of agent-authored PRs at scale:
 
-- A study of 33,596 agent-authored PRs across 2,807 repositories found reviewer engagement — not code correctness — is the strongest predictor of merge outcome; force-pushes and oversized diffs are the strongest negative predictors. Overall merge rate was 71.5%, but varied from 43.0% to 82.6% depending on the authoring agent.
-- A companion study built a structural, creation-time classifier ("Circuit Breaker") using only cheap metadata features and achieved an AUC of 0.96 predicting which PRs would become high-effort review sinks — without reading the code itself.
-- Related work reports agent PR "ghosting" rates of roughly 1–10% following reviewer feedback.
+1. A large-scale study of 33,596 agent-authored PRs across 2,807 repositories (the "AIDev" dataset) found reviewer engagement — not code correctness — is the strongest predictor of merge outcome; force-pushes and oversized diffs are the strongest negative predictors. Overall merge rate was 71.5%, ranging from 43.0% to 82.6% depending on the authoring agent.
+2. A companion study built a structural, creation-time classifier ("Circuit Breaker") using only cheap metadata features and reported an AUC of 0.96 predicting which PRs would become high-effort review sinks — without reading the code itself.
+3. Related work reports agent PR "ghosting" rates of roughly 1–10% following initial reviewer feedback.
 
-Full citations and methodology will be published in [`docs/methodology.md`](docs/methodology.md) once Phase 0 validation is complete.
+Full citations, exact dataset sources, and methodology will be published in [`docs/methodology.md`](docs/methodology.md) once Phase 0 validation is complete — including our own reproduction numbers alongside the originals, not just the published claims.
 
 ## Current stage: Phase 0 — validating the model
 
@@ -50,6 +71,11 @@ Before any tool ships, we're independently verifying the published findings hold
 - Write-up in `research/findings.md`
 
 **No tool, CLI, or GitHub Action exists yet.** They come after the model proves out — see Roadmap.
+
+## Tech stack
+
+- **Phase 0 (now) — research/**: Python, pandas, scikit-learn. This is where the model is validated before anything is built on top of it. See `research/pull_pr_data.py` for the data-collection script.
+- **Phase 1+ — packages/core, cli, github-action**: TypeScript. Once the model is proven, its inference logic is ported to a dependency-light TypeScript package so the CLI and GitHub Action can run with zero Python runtime requirement — important for adoption, since most GitHub Action/npm tooling users expect a `npx`-installable, zero-setup experience.
 
 ## Roadmap
 
@@ -69,11 +95,13 @@ Before any tool ships, we're independently verifying the published findings hold
 
 ## Contributing
 
-Not yet open for contributions — the model is being validated first so early contributors aren't building on an unproven foundation. Watch/star to follow progress; a contribution guide will go up alongside Phase 1.
+Not yet open for code contributions — the model is being validated first so early contributors aren't building on an unproven foundation. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for what you *can* do right now (research pointers, prior art, honest pushback on methodology are all welcome).
+
+This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). For security concerns, see [`SECURITY.md`](SECURITY.md).
 
 ## License
 
-TBD — likely Apache-2.0 or MIT, chosen to keep the core engine and data fully open while leaving room for an optional hosted layer later (see project notes).
+[Apache License 2.0](LICENSE) — chosen to keep the core engine and dataset fully open, with an explicit patent grant, while leaving room for an optional hosted/commercial layer later without relicensing the open core.
 
 ---
 
