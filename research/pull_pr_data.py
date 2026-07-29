@@ -50,11 +50,13 @@ HEADERS = {
 }
 
 DEFAULT_AGENT_AUTHORS = [
-    "app/copilot-swe-agent",
-    "app/devin-ai-integration",
-    "app/cursor",
-    "app/codex-connector",
-    "app/claude",
+    "app/copilot-swe-agent",       # GitHub's native coding agent (also used for Claude/Codex via GitHub's shared agent flow)
+    "app/devin-ai-integration",    # confirmed working — returned real PRs
+    "app/cursor",                  # confirmed working — low volume, Cursor is mostly interactive not autonomous
+    "app/chatgpt-codex-connector", # corrected slug — was "codex-connector", which does not exist
+    # "app/claude" removed: no distinct, confirmed GitHub App identity for Claude as a PR author.
+    # Claude-authored PRs via GitHub's native agent flow currently appear under copilot-swe-agent.
+    # Add other agents here as you confirm real slugs, e.g. "app/sweep-ai", "app/blackboxai-cofounder"
 ]
 
 DEFAULT_TARGET_REPOS = [
@@ -63,6 +65,11 @@ DEFAULT_TARGET_REPOS = [
     "vercel/next.js",
     "langchain-ai/langchain",
     "vuejs/core",
+    # Your first real run only surfaced 33 usable rows across these 5 repos —
+    # too small to train on (MIN_ROWS_WARNING = 200). Consider adding more repos
+    # known to receive heavy agent-authored PR traffic via --repos, e.g.:
+    # "pytorch/pytorch", "huggingface/transformers", "denoland/deno",
+    # "supabase/supabase", "n8n-io/n8n"
 ]
 
 OUTPUT_PATH = "../data/training/pr_dataset_raw.csv"
@@ -118,13 +125,48 @@ def request_with_retry(url: str, params: dict | None = None) -> requests.Respons
 
 
 def search_prs(repo: str, author: str) -> list[dict]:
-    """Search for PRs by a given author (bot) in a given repo via the Search API."""
+    """Search for PRs by a given author (bot) in a given repo via the Search API.
+
+    Two 422 cases to handle differently:
+    1. GitHub hard-caps search at 1,000 total results (page 11+ at per_page=100).
+       This is expected and NOT an error — return whatever was already collected
+       from earlier pages instead of discarding it.
+    2. Some very large repos (facebook/react, etc.) occasionally 422 on page 1,
+       likely a backend query-complexity/timeout quirk, not a real validation
+       error. Retry with backoff a few times before giving up on that combo.
+    """
     prs = []
     page = 1
+    page1_retries = 0
+    max_page1_retries = 3
+
     while True:
         query = f"repo:{repo} is:pr author:{author}"
         params = {"q": query, "per_page": PAGE_SIZE, "page": page}
-        resp = request_with_retry("https://api.github.com/search/issues", params)
+        try:
+            resp = request_with_retry("https://api.github.com/search/issues", params)
+        except requests.HTTPError as e:
+            if e.response is not None and e.response.status_code == 422:
+                if page > 1:
+                    # Hit the 1,000-result search cap — keep what we already have.
+                    log.info("Reached GitHub's search result cap for %s/%s at page %d "
+                             "— returning %d PRs already collected.", repo, author, page, len(prs))
+                    break
+                elif page1_retries < max_page1_retries:
+                    page1_retries += 1
+                    wait = 5 * page1_retries
+                    log.warning("422 on page 1 for %s/%s (likely a large-repo query "
+                                "timeout quirk) — retrying in %ds (%d/%d)...",
+                                repo, author, wait, page1_retries, max_page1_retries)
+                    time.sleep(wait)
+                    continue
+                else:
+                    log.error("%s/%s failed on page 1 after %d retries — skipping this "
+                              "combo. May need a different query strategy for this repo.",
+                              repo, author, max_page1_retries)
+                    break
+            raise
+
         items = resp.json().get("items", [])
         if not items:
             break
@@ -133,6 +175,7 @@ def search_prs(repo: str, author: str) -> list[dict]:
             break
         page += 1
         time.sleep(2.5)  # Search API secondary limit is ~30/min even when authenticated
+
     return prs
 
 
@@ -206,9 +249,28 @@ def extract_features(pr_detail: dict, repo: str, force_pushed) -> dict:
 
 
 def load_existing_keys(path: str):
-    """(repo, pr_number) pairs already collected, so re-runs skip duplicate work."""
+    """(repo, pr_number) pairs already collected, so re-runs skip duplicate work.
+
+    Also validates the existing CSV's header matches the current CSV_FIELDS
+    schema — appending rows with a different column count than the header
+    silently corrupts the file (this bit us once already: adding
+    duration_hours/force_pushed broke a file written by an older schema)."""
     if not os.path.exists(path):
         return set()
+
+    with open(path, "r", encoding="utf-8") as f:
+        header = f.readline().strip().split(",")
+
+    if header != CSV_FIELDS:
+        sys.exit(
+            f"Schema mismatch: {path} has columns {header}\n"
+            f"but the script now expects {CSV_FIELDS}.\n\n"
+            f"This usually means the script's schema changed since this file was "
+            f"created. Back up and remove the old file before re-running:\n"
+            f"  mv {path} {path}.bak\n"
+            f"Then re-run — data will be recollected from the API."
+        )
+
     df = pd.read_csv(path, usecols=["repo", "pr_number"])
     return set(zip(df["repo"], df["pr_number"]))
 
