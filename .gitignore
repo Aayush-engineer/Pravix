@@ -6,6 +6,5 @@ __pycache__/
 .venv/
 .env
 .DS_Store
-data/training/*.json
-data/training/*.csv
+data/training/*
 !data/training/.gitkeep
