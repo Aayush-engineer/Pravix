@@ -2,6 +2,8 @@
 
 **Predict whether an agent-authored pull request will get merged, ghosted, or dragged into a costly review spiral — before a human ever reads the diff.**
 
+**Who it's for:** open-source maintainers and teams receiving pull requests opened by AI coding agents (Copilot's coding agent, Devin, Cursor, Codex, and similar), who need a fast, free, transparent way to triage them before spending review time.
+
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![Status](https://img.shields.io/badge/status-Phase%200%20%E2%80%94%20research-orange)
 ![Contributions](https://img.shields.io/badge/contributions-not%20yet%20open-lightgrey)
@@ -29,9 +31,9 @@ If the idea sounds useful to you, **star/watch the repo** — Phase 0 findings a
 
 ## The problem
 
-AI coding agents are opening pull requests on open-source repositories at massive scale. Maintainers are drowning: a large share of agent-authored PRs stall, get abandoned mid-review ("ghosting"), or consume disproportionate reviewer time relative to their value. GitHub has had to introduce restrictions on automated PR volume. Existing tools try to help by having an LLM read the diff and render an opinion — which costs money per PR, adds latency, and gives maintainers a black-box judgment rather than a reason.
+AI coding agents are opening pull requests on open-source repositories at massive scale. Maintainers are drowning: a large share of agent-authored PRs stall, get abandoned mid-review, or consume disproportionate reviewer time relative to their value. ("**Ghosting**" — a PR where the agent goes quiet after initial reviewer feedback, leaving a maintainer's comments unanswered — is common enough that the research below tracks it as its own outcome category.) GitHub has had to introduce restrictions on automated PR volume. Existing tools try to help by having an LLM read the diff and render an opinion — which costs money per PR, adds latency, and gives maintainers a black-box judgment rather than a reason.
 
-Recent research (cited below) shows this is largely *predictable in advance*, using only cheap, structural signals available the moment a PR is opened — no LLM call required.
+Recent research (cited below) shows this is largely *predictable in advance*, using only cheap, **structural signals** — metadata about the PR itself (its size, timing, and history), not the code's actual logic — available the moment a PR is opened, no LLM call required.
 
 ## What Pravix does
 
@@ -44,6 +46,22 @@ Pravix scores an agent-authored PR **at creation time** using structural metadat
 - Reviewer engagement patterns from similar past PRs
 
 It outputs a risk score and the top contributing factors — in plain language, not a black box — with **no LLM call required for the core score**, so it costs nothing to run at scale.
+
+**What this will look like once the GitHub Action ships** (Phase 3 — not built yet, shown here so the end goal is concrete):
+
+```
+Pravix risk check
+──────────────────
+Risk: HIGH (predicted low merge probability)
+
+Top contributing factors:
+  • Diff size: 2,340 lines (top 5% largest in this repo's agent-PR history)
+  • No implementation plan stated in PR description
+  • Author (devin-ai-integration) merge rate on this repo: 31%
+
+This is a structural prediction, not a code review — nothing here has
+read your diff. Full breakdown: [link]
+```
 
 ## Why not just use PR-Agent / CodeRabbit / GitHub's Agentic Workflows?
 
