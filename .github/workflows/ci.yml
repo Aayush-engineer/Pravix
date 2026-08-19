@@ -1,9 +1,45 @@
 name: CI
-on: [push, pull_request]
+
+on:
+  push:
+  pull_request:
+
 jobs:
-  lint-docs:
+  lint-python:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check for broken links in docs
-        run: echo "placeholder — real checks added in Phase 1"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install lint tools
+        run: pip install ruff black
+
+      - name: Ruff (style + common bugs)
+        run: ruff check research/
+
+      - name: Black (formatting check only, does not modify files)
+        run: black --check research/
+
+  validate-structure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Confirm no raw data files are accidentally tracked
+        run: |
+          if git ls-files | grep -E '^data/training/.*\.(csv|json)$'; then
+            echo "ERROR: raw data files should not be committed — check .gitignore"
+            exit 1
+          fi
+          echo "OK: no tracked raw data files"
+
+      - name: Confirm required governance files exist
+        run: |
+          for f in LICENSE CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md README.md; do
+            test -f "$f" || { echo "Missing required file: $f"; exit 1; }
+          done
+          echo "OK: all required governance files present"
